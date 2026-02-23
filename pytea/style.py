@@ -256,18 +256,10 @@ class Style:
         """Apply all styling and return the final ANSI string."""
         lines = content.split('\n')
 
-        # Build ANSI prefix/suffix for text attributes
-        prefix = self._build_prefix()
-        suffix = RESET if prefix else ''
-
-        # Apply text styling to each line
-        if prefix:
-            lines = [prefix + line + suffix for line in lines]
-
         # Wrap before padding so wrapped lines all get proper padding
         lines = self._apply_wrap(lines)
 
-        # Apply padding
+        # Apply padding (plain spaces — will be inside ANSI wrapper)
         lines = self._apply_padding(lines)
 
         # Apply width constraint (pad/safety-truncate; wrapping already handled)
@@ -278,6 +270,13 @@ class Style:
 
         # Apply alignment within width
         lines = self._apply_align(lines)
+
+        # Apply ANSI text styling AFTER padding/width/height/alignment
+        # so padding spaces get the background color (matches Go lipgloss)
+        prefix = self._build_prefix()
+        suffix = RESET if prefix else ''
+        if prefix:
+            lines = [prefix + line + suffix for line in lines]
 
         # Apply max_height
         if self._max_height > 0 and len(lines) > self._max_height:
