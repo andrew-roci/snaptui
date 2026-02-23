@@ -32,6 +32,7 @@ class Select:
     _offset: int = 0  # scroll offset for long lists
 
     # Styles
+    label_style: Style | None = None
     cursor_style: Style | None = None
     selected_style: Style | None = None
     normal_style: Style | None = None
@@ -99,7 +100,10 @@ class Select:
         lines: list[str] = []
 
         if self._label:
-            lines.append(self._label)
+            lbl = self._label
+            if self.label_style:
+                lbl = self.label_style.render(lbl)
+            lines.append(lbl)
 
         # Determine visible range
         start = self._offset
@@ -114,7 +118,7 @@ class Select:
                 prefix = '> '
                 style = self.cursor_style
             elif is_selected:
-                prefix = '  '
+                prefix = '> '
                 style = self.selected_style
             else:
                 prefix = '  '

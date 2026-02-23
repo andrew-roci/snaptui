@@ -31,6 +31,11 @@ ERASE_LINE_RIGHT = '\x1b[K'
 ERASE_SCREEN_BELOW = '\x1b[J'
 ERASE_ENTIRE_SCREEN = '\x1b[2J'
 
+# ── Synchronized output (DEC mode 2026) ─────────────────────────────────────
+
+SYNC_BEGIN = '\x1b[?2026h'
+SYNC_END = '\x1b[?2026l'
+
 # ── Reset ─────────────────────────────────────────────────────────────────────
 
 RESET = '\x1b[0m'

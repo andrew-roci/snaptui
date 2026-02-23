@@ -102,6 +102,11 @@ class Program:
             self._quit = True
             return
 
+        if isinstance(msg, WindowSizeMsg):
+            self._width = msg.width
+            self._height = msg.height
+            self._renderer.repaint()
+
         new_model, cmd = self.model.update(msg)
         self.model = new_model
         self._exec_cmd(cmd)

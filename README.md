@@ -54,7 +54,17 @@ Because ANSI rendering is done by the terminal emulator (which is GPU-accelerate
 
 ## What's ported from where
 
-pytea combines features from four Charm libraries into one package. Here's what's implemented and what's not:
+pytea combines features from four Charm libraries into one package, porting from these exact versions:
+
+| Go module | Version |
+|-----------|---------|
+| [charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea) | v1.3.10 |
+| [charmbracelet/lipgloss](https://github.com/charmbracelet/lipgloss) | v1.1.0 |
+| [charmbracelet/bubbles](https://github.com/charmbracelet/bubbles) | v1.0.0 |
+| [charmbracelet/huh](https://github.com/charmbracelet/huh) | v0.8.0 |
+| [charmbracelet/x/ansi](https://github.com/charmbracelet/x/tree/main/ansi) | v0.11.6 |
+
+Here's what's implemented and what's not:
 
 ### Core Framework
 
@@ -171,6 +181,36 @@ your_app.py
 ```
 
 In Go, these are spread across four repos (bubbletea, lipgloss, bubbles, x/ansi). pytea combines them because Python apps can just import what they need from one package.
+
+## File mapping
+
+Exact Go source → pytea file mapping for reference when porting new features or chasing bugs back to the Go implementation.
+
+Go source repos:
+- [bubbletea](https://github.com/charmbracelet/bubbletea) (v1.3.10) — event loop, renderer, key input
+- [lipgloss](https://github.com/charmbracelet/lipgloss) (v1.1.0) — styling, layout, borders
+- [bubbles](https://github.com/charmbracelet/bubbles) (v1.0.0) — textinput, textarea, viewport, list
+- [huh](https://github.com/charmbracelet/huh) (v0.8.0) — form, select, confirm, theme
+- [x/ansi](https://github.com/charmbracelet/x/tree/main/ansi) (v0.11.6) — string width, wrap, truncate
+
+| pytea file | Go source(s) |
+|---|---|
+| `model.py` | `bubbletea/tea.go` |
+| `program.py` | `bubbletea/tea.go`, `bubbletea/signals_unix.go` |
+| `renderer.py` | `bubbletea/standard_renderer.go` |
+| `keys.py` | `bubbletea/key.go`, `bubbletea/key_sequences.go` |
+| `terminal.py` | `bubbletea/tty_unix.go`, `x/ansi/mode.go` |
+| `style.py` | `lipgloss/style.go`, `lipgloss/set.go`, `lipgloss/get.go`, `lipgloss/color.go`, `lipgloss/borders.go`, `lipgloss/whitespace.go`, `lipgloss/size.go` |
+| `layout.py` | `lipgloss/join.go`, `lipgloss/align.go`, `lipgloss/position.go` |
+| `strutil.py` | `x/ansi/width.go`, `x/ansi/wrap.go`, `x/ansi/truncate.go`, `x/ansi/style.go` |
+| `theme.py` | `huh/theme.go` |
+| `components/textinput.py` | `bubbles/textinput/textinput.go`, `bubbles/cursor/cursor.go` |
+| `components/textarea.py` | `bubbles/textarea/textarea.go` |
+| `components/viewport.py` | `bubbles/viewport/viewport.go`, `bubbles/viewport/keymap.go` |
+| `components/list.py` | `bubbles/list/list.go`, `bubbles/list/defaultitem.go`, `bubbles/paginator/paginator.go` |
+| `components/select.py` | `huh/field_select.go` |
+| `components/confirm.py` | `huh/field_confirm.go` |
+| `components/form.py` | `huh/form.go`, `huh/group.go` |
 
 ## Running tests
 

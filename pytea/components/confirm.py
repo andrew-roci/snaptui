@@ -32,6 +32,7 @@ class Confirm:
     # Styles
     prompt_style: Style | None = None
     selected_style: Style | None = None
+    blurred_style: Style | None = None
 
     def focus(self) -> None:
         self.focused = True
@@ -65,7 +66,7 @@ class Confirm:
         lines.append(p)
 
         ss = self.selected_style or Style().bold().reverse()
-        ns = Style()
+        ns = self.blurred_style or Style()
 
         yes_text = f' {self.affirmative} '
         no_text = f' {self.negative} '

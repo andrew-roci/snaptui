@@ -12,6 +12,10 @@ from typing import Any
 from ..keys import KeyMsg
 from ..model import Cmd, Msg
 from ..style import Style
+from ..theme import Theme, ThemeCharm
+from .textinput import TextInput
+from .select import Select
+from .confirm import Confirm
 
 
 @dataclass
@@ -30,12 +34,14 @@ class Form:
         focused_index: Currently focused field index
         submitted: Whether the form has been submitted
         cancelled: Whether the form was cancelled
+        theme: Theme applied to components on add_field (default ThemeCharm)
     """
     fields: list[FormField] = field(default_factory=list)
     focused_index: int = 0
     submitted: bool = False
     cancelled: bool = False
     _title: str = ''
+    theme: Theme | None = field(default_factory=ThemeCharm)
 
     # Styles
     title_style: Style | None = None
@@ -46,8 +52,40 @@ class Form:
 
     def add_field(self, component: Any, key: str = '') -> 'Form':
         """Add a field to the form."""
+        self._apply_theme_to(component)
         self.fields.append(FormField(component=component, key=key))
         return self
+
+    def _apply_theme_to(self, comp: Any) -> None:
+        """Apply theme defaults to a component (only fills unset styles)."""
+        if self.theme is None:
+            return
+        t = self.theme
+        if isinstance(comp, TextInput):
+            if comp.label_style is None:
+                comp.label_style = t.title
+            if comp.prompt_style is None:
+                comp.prompt_style = t.prompt
+            if comp.cursor_style is None:
+                comp.cursor_style = t.cursor
+            if comp.placeholder_style is None:
+                comp.placeholder_style = t.placeholder
+            if not comp.cursor_blink:
+                comp.cursor_blink = t.cursor_blink
+        elif isinstance(comp, Select):
+            if comp.label_style is None:
+                comp.label_style = t.title
+            if comp.cursor_style is None:
+                comp.cursor_style = t.select_cursor
+            if comp.selected_style is None:
+                comp.selected_style = t.selected_option
+        elif isinstance(comp, Confirm):
+            if comp.prompt_style is None:
+                comp.prompt_style = t.title
+            if comp.selected_style is None:
+                comp.selected_style = t.focused_button
+            if comp.blurred_style is None:
+                comp.blurred_style = t.blurred_button
 
     def focus_field(self, index: int) -> None:
         """Focus a specific field by index."""
@@ -69,11 +107,15 @@ class Form:
         """Move focus to next field."""
         if self.focused_index < len(self.fields) - 1:
             self.focus_field(self.focused_index + 1)
+        else:
+            self.focus_field(0)
 
     def prev_field(self) -> None:
         """Move focus to previous field."""
         if self.focused_index > 0:
             self.focus_field(self.focused_index - 1)
+        else:
+            self.focus_field(len(self.fields) - 1)
 
     def get_value(self, key: str) -> Any:
         """Get value of a field by key."""
@@ -141,6 +183,11 @@ class Form:
 
         for i, f in enumerate(self.fields):
             field_view = f.component.view()
+            if self.theme:
+                is_focused = (i == self.focused_index)
+                base = self.theme.focused_base if is_focused else self.theme.blurred_base
+                if base:
+                    field_view = base.render(field_view)
             lines.append(field_view)
             if i < len(self.fields) - 1:
                 lines.append('')  # spacing between fields

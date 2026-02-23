@@ -29,6 +29,12 @@ class QuitMsg:
     pass
 
 
+@dataclass(frozen=True, slots=True)
+class CursorBlinkMsg:
+    """Sent by TextInput to toggle cursor visibility."""
+    tag: int = 0
+
+
 # ── Command types ─────────────────────────────────────────────────────────────
 
 # A Cmd is a callable that returns a Msg (or None).

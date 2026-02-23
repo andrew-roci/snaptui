@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from .. import strutil
 from ..keys import KeyMsg
-from ..model import Cmd, Msg
+from ..model import Cmd, CursorBlinkMsg, Msg
 from ..style import Style
 
 
@@ -36,10 +36,17 @@ class TextInput:
     _label: str = ''
 
     # Styles (configurable)
+    label_style: Style | None = None
     prompt_style: Style | None = None
     text_style: Style | None = None
     placeholder_style: Style | None = None
     cursor_style: Style | None = None
+
+    # Cursor blink
+    cursor_blink: bool = False
+    _cursor_visible: bool = True
+    _blink_tag: int = 0
+    _blink_active: bool = False
 
     def label(self, text: str) -> 'TextInput':
         self._label = text
@@ -47,20 +54,54 @@ class TextInput:
 
     def focus(self) -> None:
         self.focused = True
+        self._blink_active = False
+        self._cursor_visible = True
 
     def blur(self) -> None:
         self.focused = False
+        self._blink_tag += 1
+        self._blink_active = False
 
     def set_value(self, v: str) -> None:
         self.value = v
         self.cursor = len(v)
 
+    def _new_blink_cmd(self) -> Cmd:
+        tag = self._blink_tag
+
+        def cmd():
+            import time
+            time.sleep(0.53)
+            return CursorBlinkMsg(tag=tag)
+
+        return cmd
+
     def update(self, msg: Msg) -> tuple['TextInput', Cmd]:
         if not self.focused:
             return self, None
 
+        # Handle blink messages
+        if isinstance(msg, CursorBlinkMsg):
+            if msg.tag == self._blink_tag:
+                self._cursor_visible = not self._cursor_visible
+                return self, self._new_blink_cmd()
+            # Stale tag — ignore, but start blink if needed (falls through below)
+
+        # Start blink timer if needed
+        blink_cmd = None
+        if self.cursor_blink and not self._blink_active:
+            self._blink_active = True
+            self._cursor_visible = True
+            blink_cmd = self._new_blink_cmd()
+
         if not isinstance(msg, KeyMsg):
-            return self, None
+            return self, blink_cmd
+
+        # On any key press, reset cursor to visible and restart blink
+        self._cursor_visible = True
+        self._blink_tag += 1
+        self._blink_active = True
+        blink_cmd = self._new_blink_cmd() if self.cursor_blink else None
 
         key = msg.key
 
@@ -105,17 +146,22 @@ class TextInput:
                 self.value = self.value[:self.cursor] + ' ' + self.value[self.cursor:]
                 self.cursor += 1
 
-        return self, None
+        return self, blink_cmd
 
     def view(self) -> str:
         lines: list[str] = []
 
         # Label
         if self._label:
-            lines.append(self._label)
+            lbl = self._label
+            if self.label_style:
+                lbl = self.label_style.render(lbl)
+            lines.append(lbl)
 
         # Build input line
         prompt = self.prompt if self.prompt else ''
+        if self.prompt_style and prompt:
+            prompt = self.prompt_style.render(prompt)
 
         if not self.value and not self.focused:
             # Show placeholder
@@ -132,9 +178,12 @@ class TextInput:
                 after = display[self.cursor:]
                 cursor_char = after[0] if after else ' '
                 after = after[1:] if after else ''
-                # Render cursor character with reverse video
-                cs = self.cursor_style or Style().reverse()
-                cursor_display = cs.render(cursor_char)
+                # Render cursor character — blink off shows plain char
+                if self._cursor_visible or not self.cursor_blink:
+                    cs = (self.cursor_style or Style()).reverse()
+                    cursor_display = cs.render(cursor_char)
+                else:
+                    cursor_display = cursor_char
                 display = before + cursor_display + after
 
             lines.append(prompt + display)
