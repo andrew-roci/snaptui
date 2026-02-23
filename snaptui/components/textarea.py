@@ -225,9 +225,6 @@ class TextArea:
 
         # Pad remaining height
         while len(result) - (1 if self._label else 0) < self.height:
-            if self.show_line_numbers:
-                result.append(' ' * gutter_w + '~')
-            else:
-                result.append('~')
+            result.append(' ' * gutter_w if self.show_line_numbers else '')
 
         return '\n'.join(result)
