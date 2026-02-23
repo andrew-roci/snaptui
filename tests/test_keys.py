@@ -1,6 +1,6 @@
 """Tests for keys module — escape sequence parsing."""
 
-from pytea.keys import KeyMsg, SEQUENCES, CTRL_MAP, _read_utf8
+from snaptui.keys import KeyMsg, SEQUENCES, CTRL_MAP, _read_utf8
 import io
 
 

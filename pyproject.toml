@@ -3,11 +3,14 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pytea"
+name = "snaptui"
 version = "0.1.0"
 description = "Minimal Python Charm stack — raw terminal TUI framework"
 requires-python = ">=3.11"
 dependencies = []
+
+[tool.setuptools.packages.find]
+include = ["snaptui*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

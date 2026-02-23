@@ -1,7 +1,7 @@
 """Tests for the List component — paginated list with delegate rendering."""
 
-from pytea.components.list import List, ItemDelegate
-from pytea.keys import KeyMsg
+from snaptui.components.list import List, ItemDelegate
+from snaptui.keys import KeyMsg
 
 
 class SimpleDelegate:

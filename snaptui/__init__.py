@@ -1,4 +1,4 @@
-"""pytea — Minimal Python Charm stack.
+"""snaptui — Minimal Python Charm stack.
 
 A zero-dependency TUI framework implementing the Elm Architecture
 with raw terminal I/O, matching Bubble Tea's approach.

@@ -1,7 +1,7 @@
 """Tests for layout module — join_horizontal, join_vertical, place."""
 
-from pytea.layout import join_horizontal, join_vertical, place, LEFT, CENTER, RIGHT, TOP, BOTTOM
-from pytea.strutil import visible_width
+from snaptui.layout import join_horizontal, join_vertical, place, LEFT, CENTER, RIGHT, TOP, BOTTOM
+from snaptui.strutil import visible_width
 
 
 class TestJoinHorizontal:

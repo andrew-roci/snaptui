@@ -1,6 +1,6 @@
 """Tests for strutil module — ANSI-aware string operations."""
 
-from pytea.strutil import strip_ansi, visible_width, pad_right, truncate, word_wrap
+from snaptui.strutil import strip_ansi, visible_width, pad_right, truncate, word_wrap
 
 
 class TestStripAnsi:

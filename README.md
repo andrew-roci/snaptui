@@ -1,4 +1,4 @@
-# pytea
+# snaptui
 
 A zero-dependency Python TUI framework that ports the [Charm](https://charm.sh) stack's approach to terminal UIs: the Elm Architecture, raw terminal I/O, and ANSI escape sequences.
 
@@ -6,7 +6,7 @@ A zero-dependency Python TUI framework that ports the [Charm](https://charm.sh) 
 
 Python's TUI options are either curses-based (complex, stateful, platform-dependent) or heavy frameworks like Textual (hundreds of dependencies, CSS layout engine, async runtime). The Go ecosystem solved this with the Charm stack: a set of composable libraries that render TUIs by writing ANSI escape sequences directly to stdout. This makes rendering fast and the architecture simple -- your entire UI is a function that returns a string.
 
-pytea brings that approach to Python:
+snaptui brings that approach to Python:
 
 - **No curses.** Reads raw bytes from stdin, writes ANSI sequences to stdout.
 - **No dependencies.** Uses only the Python standard library (termios, select, signal, fcntl).
@@ -16,7 +16,7 @@ pytea brings that approach to Python:
 ## How the Elm Architecture works
 
 ```python
-from pytea import Model, Cmd, KeyMsg, WindowSizeMsg, quit_cmd
+from snaptui import Model, Cmd, KeyMsg, WindowSizeMsg, quit_cmd
 
 class Counter:
     def __init__(self):
@@ -43,7 +43,7 @@ The program calls `view()` after every `update()`, diffs the output, and writes 
 
 ## Why escape sequences make this fast
 
-Traditional TUI frameworks (curses, Textual) maintain an internal screen buffer and compute cell-by-cell diffs. pytea skips all of that:
+Traditional TUI frameworks (curses, Textual) maintain an internal screen buffer and compute cell-by-cell diffs. snaptui skips all of that:
 
 1. **Your `view()` returns a string** with embedded ANSI codes for colors, bold, etc.
 2. **The renderer splits it into lines** and compares against the previous frame.
@@ -54,7 +54,7 @@ Because ANSI rendering is done by the terminal emulator (which is GPU-accelerate
 
 ## What's ported from where
 
-pytea combines features from four Charm libraries into one package, porting from these exact versions:
+snaptui combines features from four Charm libraries into one package, porting from these exact versions:
 
 | Go module | Version |
 |-----------|---------|
@@ -68,7 +68,7 @@ Here's what's implemented and what's not:
 
 ### Core Framework
 
-| Feature | Charm Source | pytea | Status |
+| Feature | Charm Source | snaptui | Status |
 |---------|-------------|-------|--------|
 | Elm Architecture (init/update/view) | bubbletea | `Model` protocol, `Program` | Done |
 | Message types (Key, WindowSize, Quit) | bubbletea | `KeyMsg`, `WindowSizeMsg`, `QuitMsg` | Done |
@@ -88,7 +88,7 @@ Here's what's implemented and what's not:
 
 ### Styling
 
-| Feature | Charm Source | pytea | Status |
+| Feature | Charm Source | snaptui | Status |
 |---------|-------------|-------|--------|
 | Chainable style builder | lipgloss | `Style` class | Done |
 | Text attributes (bold, dim, italic, underline, reverse, strikethrough) | lipgloss | `Style.bold()`, `.dim()`, etc. | Done |
@@ -111,7 +111,7 @@ Here's what's implemented and what's not:
 
 ### Layout
 
-| Feature | Charm Source | pytea | Status |
+| Feature | Charm Source | snaptui | Status |
 |---------|-------------|-------|--------|
 | Join blocks horizontally | lipgloss | `join_horizontal()` | Done |
 | Join blocks vertically | lipgloss | `join_vertical()` | Done |
@@ -120,7 +120,7 @@ Here's what's implemented and what's not:
 
 ### String Utilities
 
-| Feature | Charm Source | pytea | Status |
+| Feature | Charm Source | snaptui | Status |
 |---------|-------------|-------|--------|
 | ANSI-aware visible width | x/ansi | `strutil.visible_width()` | Done |
 | ANSI stripping | x/ansi | `strutil.strip_ansi()` | Done |
@@ -134,7 +134,7 @@ Here's what's implemented and what's not:
 
 ### Components
 
-| Component | Charm Source | pytea | Status |
+| Component | Charm Source | snaptui | Status |
 |-----------|-------------|-------|--------|
 | Single-line text input | bubbles/textinput | `TextInput` | Done |
 | Multi-line text area | bubbles/textarea | `TextArea` | Done |
@@ -160,7 +160,7 @@ Here's what's implemented and what's not:
 ```
 your_app.py
     |
-    +-- pytea (framework + styling + components in one package)
+    +-- snaptui (framework + styling + components in one package)
             |
             +-- model.py        Elm Architecture: Model protocol, Msg, Cmd
             +-- keys.py         Keyboard input: escape sequence parser
@@ -180,11 +180,11 @@ your_app.py
                     +-- form.py        Multi-field form
 ```
 
-In Go, these are spread across four repos (bubbletea, lipgloss, bubbles, x/ansi). pytea combines them because Python apps can just import what they need from one package.
+In Go, these are spread across four repos (bubbletea, lipgloss, bubbles, x/ansi). snaptui combines them because Python apps can just import what they need from one package.
 
 ## File mapping
 
-Exact Go source → pytea file mapping for reference when porting new features or chasing bugs back to the Go implementation.
+Exact Go source → snaptui file mapping for reference when porting new features or chasing bugs back to the Go implementation.
 
 Go source repos:
 - [bubbletea](https://github.com/charmbracelet/bubbletea) (v1.3.10) — event loop, renderer, key input
@@ -193,7 +193,7 @@ Go source repos:
 - [huh](https://github.com/charmbracelet/huh) (v0.8.0) — form, select, confirm, theme
 - [x/ansi](https://github.com/charmbracelet/x/tree/main/ansi) (v0.11.6) — string width, wrap, truncate
 
-| pytea file | Go source(s) |
+| snaptui file | Go source(s) |
 |---|---|
 | `model.py` | `bubbletea/tea.go` |
 | `program.py` | `bubbletea/tea.go`, `bubbletea/signals_unix.go` |

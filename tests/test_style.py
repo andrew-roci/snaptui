@@ -1,7 +1,7 @@
 """Tests for style module — Lip Gloss equivalent."""
 
-from pytea.style import Style, ROUNDED_BORDER, NORMAL_BORDER, RESET
-from pytea.strutil import visible_width, strip_ansi
+from snaptui.style import Style, ROUNDED_BORDER, NORMAL_BORDER, RESET
+from snaptui.strutil import visible_width, strip_ansi
 
 
 class TestStyleBasic:
