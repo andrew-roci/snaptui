@@ -154,8 +154,12 @@ class Form:
                 self.cancelled = True
                 return self, None
             elif key == 'enter':
-                # If on last field, submit
+                # If on last field, let the component finalize (e.g. Select
+                # sets selected=cursor) then submit
                 if self.focused_index == len(self.fields) - 1:
+                    comp = self.fields[self.focused_index].component
+                    comp, _ = comp.update(msg)
+                    self.fields[self.focused_index].component = comp
                     self.submitted = True
                     return self, None
                 # Otherwise move to next field
