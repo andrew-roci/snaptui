@@ -271,6 +271,12 @@ class Style:
         # Apply alignment within width
         lines = self._apply_align(lines)
 
+        # Pad all lines to the max width so background fills uniformly
+        # (matches Go lipgloss which always normalizes line widths)
+        if len(lines) > 1:
+            max_w = max((strutil.visible_width(l) for l in lines), default=0)
+            lines = [strutil.pad_right(l, max_w) for l in lines]
+
         # Apply ANSI text styling AFTER padding/width/height/alignment
         # so padding spaces get the background color (matches Go lipgloss)
         prefix = self._build_prefix()
