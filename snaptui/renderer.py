@@ -6,6 +6,7 @@ Supports hardware cursor positioning from View.cursor.
 
 from __future__ import annotations
 
+import os
 import sys
 
 from . import terminal
@@ -17,7 +18,7 @@ class Renderer:
 
     def __init__(self) -> None:
         self._prev_lines: list[str] = []
-        self._out = sys.stdout
+        self._fd = sys.stdout.fileno()
         self._repaint = False
 
     def repaint(self) -> None:
@@ -77,15 +78,11 @@ class Renderer:
             buf.append(terminal.HIDE_CURSOR)
 
         frame = ''.join(buf)
-        self._out.write(
-            terminal.SYNC_BEGIN + frame + terminal.SYNC_END
-        )
-        self._out.flush()
+        os.write(self._fd, (terminal.SYNC_BEGIN + frame + terminal.SYNC_END).encode())
 
         self._prev_lines = new_lines
 
     def clear(self) -> None:
         """Clear the screen and reset state."""
         self._prev_lines = []
-        self._out.write(terminal.ERASE_ENTIRE_SCREEN + terminal.CURSOR_HOME)
-        self._out.flush()
+        os.write(self._fd, (terminal.ERASE_ENTIRE_SCREEN + terminal.CURSOR_HOME).encode())

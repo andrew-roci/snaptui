@@ -140,8 +140,7 @@ def listen_for_resize(callback) -> None:
 
 def write(s: str) -> None:
     """Write string to stdout and flush."""
-    sys.stdout.write(s)
-    sys.stdout.flush()
+    os.write(sys.stdout.fileno(), s.encode())
 
 
 def write_bytes(b: bytes) -> None:
