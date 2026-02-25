@@ -59,6 +59,28 @@ UNDERLINE_CODE = '\x1b[4m'
 REVERSE_CODE = '\x1b[7m'
 STRIKETHROUGH_CODE = '\x1b[9m'
 
+# ── Underline style constants (SGR 4:x) ─────────────────────────────────────
+
+UNDERLINE_SINGLE = 'single'   # SGR 4:1 (same as plain \x1b[4m)
+UNDERLINE_DOUBLE = 'double'   # SGR 4:2
+UNDERLINE_CURLY = 'curly'     # SGR 4:3
+UNDERLINE_DOTTED = 'dotted'   # SGR 4:4
+UNDERLINE_DASHED = 'dashed'   # SGR 4:5
+
+_UNDERLINE_SGR: dict[str, str] = {
+    UNDERLINE_SINGLE: '\x1b[4:1m',
+    UNDERLINE_DOUBLE: '\x1b[4:2m',
+    UNDERLINE_CURLY:  '\x1b[4:3m',
+    UNDERLINE_DOTTED: '\x1b[4:4m',
+    UNDERLINE_DASHED: '\x1b[4:5m',
+}
+
+
+def _underline_color_code(hex_color: str) -> str:
+    """SGR 58;2;r;g;b — set underline color (24-bit)."""
+    r, g, b = _hex_to_rgb(hex_color)
+    return f'\x1b[58;2;{r};{g};{b}m'
+
 
 # ── Style class ───────────────────────────────────────────────────────────────
 
@@ -67,6 +89,7 @@ class Style:
 
     __slots__ = (
         '_fg_color', '_bg_color', '_bold', '_dim', '_italic', '_underline',
+        '_underline_style', '_underline_color',
         '_reverse', '_strikethrough',
         '_padding_top', '_padding_right', '_padding_bottom', '_padding_left',
         '_margin_top', '_margin_right', '_margin_bottom', '_margin_left',
@@ -83,6 +106,8 @@ class Style:
         self._dim: bool = False
         self._italic: bool = False
         self._underline: bool = False
+        self._underline_style: str | None = None  # UNDERLINE_SINGLE, etc.
+        self._underline_color: str | None = None   # hex color
         self._reverse: bool = False
         self._strikethrough: bool = False
         self._padding_top: int = 0
@@ -131,6 +156,19 @@ class Style:
     def underline(self, v: bool = True) -> Style:
         s = self._copy()
         s._underline = v
+        return s
+
+    def underline_style(self, style: str) -> Style:
+        """Set underline style: UNDERLINE_SINGLE, UNDERLINE_DOUBLE, UNDERLINE_CURLY, UNDERLINE_DOTTED, UNDERLINE_DASHED."""
+        s = self._copy()
+        s._underline = True
+        s._underline_style = style
+        return s
+
+    def underline_color(self, hex_color: str) -> Style:
+        """Set underline color (SGR 58). Requires underline to be enabled."""
+        s = self._copy()
+        s._underline_color = hex_color
         return s
 
     def reverse(self, v: bool = True) -> Style:
@@ -309,7 +347,12 @@ class Style:
         if self._italic:
             parts.append(ITALIC_CODE)
         if self._underline:
-            parts.append(UNDERLINE_CODE)
+            if self._underline_style and self._underline_style in _UNDERLINE_SGR:
+                parts.append(_UNDERLINE_SGR[self._underline_style])
+            else:
+                parts.append(UNDERLINE_CODE)
+            if self._underline_color:
+                parts.append(_underline_color_code(self._underline_color))
         if self._reverse:
             parts.append(REVERSE_CODE)
         if self._strikethrough:

@@ -65,6 +65,13 @@ def cursor_to(row: int, col: int) -> str:
     return f'\x1b[{row};{col}H'
 
 
+# ── Window title ─────────────────────────────────────────────────────────────
+
+def set_window_title(title: str) -> str:
+    """OSC 2 — set terminal window title."""
+    return f'\x1b]2;{title}\x07'
+
+
 # ── Colors (24-bit true color) ───────────────────────────────────────────────
 
 def fg(r: int, g: int, b: int) -> str:

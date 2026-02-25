@@ -8,6 +8,18 @@ from __future__ import annotations
 import os
 import select
 from dataclasses import dataclass
+from enum import IntFlag
+
+
+# ── Modifier bitfield ────────────────────────────────────────────────────────
+
+class Mod(IntFlag):
+    """Key modifier flags. Can be combined: Mod.CTRL | Mod.SHIFT."""
+    NONE  = 0
+    SHIFT = 1
+    ALT   = 2
+    CTRL  = 4
+    META  = 8
 
 
 @dataclass(frozen=True, slots=True, eq=False)
@@ -16,9 +28,23 @@ class KeyMsg:
 
     key: Symbolic name like "enter", "ctrl+c", "up", "a"
     char: Printable character if applicable, empty string otherwise
+    mod: Modifier flags (Mod.CTRL, Mod.SHIFT, etc.)
     """
     key: str
     char: str = ''
+    mod: Mod = Mod.NONE
+
+    @property
+    def has_ctrl(self) -> bool:
+        return bool(self.mod & Mod.CTRL)
+
+    @property
+    def has_shift(self) -> bool:
+        return bool(self.mod & Mod.SHIFT)
+
+    @property
+    def has_alt(self) -> bool:
+        return bool(self.mod & Mod.ALT)
 
     def __eq__(self, other):
         if isinstance(other, str):
@@ -111,25 +137,25 @@ SEQUENCES: dict[bytes, KeyMsg] = {
     b'\x1b[24~':  KeyMsg(KEY_F12),
 
     # Shift+Tab
-    b'\x1b[Z':    KeyMsg(KEY_SHIFT_TAB),
+    b'\x1b[Z':    KeyMsg(KEY_SHIFT_TAB, mod=Mod.SHIFT),
 
     # Ctrl+Arrow (common sequences)
-    b'\x1b[1;5A':  KeyMsg('ctrl+up'),
-    b'\x1b[1;5B':  KeyMsg('ctrl+down'),
-    b'\x1b[1;5C':  KeyMsg('ctrl+right'),
-    b'\x1b[1;5D':  KeyMsg('ctrl+left'),
+    b'\x1b[1;5A':  KeyMsg('ctrl+up', mod=Mod.CTRL),
+    b'\x1b[1;5B':  KeyMsg('ctrl+down', mod=Mod.CTRL),
+    b'\x1b[1;5C':  KeyMsg('ctrl+right', mod=Mod.CTRL),
+    b'\x1b[1;5D':  KeyMsg('ctrl+left', mod=Mod.CTRL),
 
     # Shift+Arrow
-    b'\x1b[1;2A':  KeyMsg('shift+up'),
-    b'\x1b[1;2B':  KeyMsg('shift+down'),
-    b'\x1b[1;2C':  KeyMsg('shift+right'),
-    b'\x1b[1;2D':  KeyMsg('shift+left'),
+    b'\x1b[1;2A':  KeyMsg('shift+up', mod=Mod.SHIFT),
+    b'\x1b[1;2B':  KeyMsg('shift+down', mod=Mod.SHIFT),
+    b'\x1b[1;2C':  KeyMsg('shift+right', mod=Mod.SHIFT),
+    b'\x1b[1;2D':  KeyMsg('shift+left', mod=Mod.SHIFT),
 
     # Alt+Arrow
-    b'\x1b[1;3A':  KeyMsg('alt+up'),
-    b'\x1b[1;3B':  KeyMsg('alt+down'),
-    b'\x1b[1;3C':  KeyMsg('alt+right'),
-    b'\x1b[1;3D':  KeyMsg('alt+left'),
+    b'\x1b[1;3A':  KeyMsg('alt+up', mod=Mod.ALT),
+    b'\x1b[1;3B':  KeyMsg('alt+down', mod=Mod.ALT),
+    b'\x1b[1;3C':  KeyMsg('alt+right', mod=Mod.ALT),
+    b'\x1b[1;3D':  KeyMsg('alt+left', mod=Mod.ALT),
 }
 
 # ── Control character map ────────────────────────────────────────────────────
@@ -195,7 +221,9 @@ def read_key(fd: int, timeout: float = 0.05) -> KeyMsg | None:
 
     # Control characters
     if byte in CTRL_MAP:
-        return KeyMsg(CTRL_MAP[byte])
+        name = CTRL_MAP[byte]
+        mod = Mod.CTRL if name.startswith('ctrl+') else Mod.NONE
+        return KeyMsg(name, mod=mod)
 
     # Printable ASCII / UTF-8
     try:
@@ -256,9 +284,11 @@ def _read_escape_sequence(fd: int, initial: bytes) -> KeyMsg:
         second = buf[1]
         if 32 <= second < 127:
             char = chr(second)
-            return KeyMsg(f'alt+{char}', char)
+            return KeyMsg(f'alt+{char}', char, mod=Mod.ALT)
         if second in CTRL_MAP:
-            return KeyMsg(f'alt+{CTRL_MAP[second]}')
+            ctrl_name = CTRL_MAP[second]
+            mod = Mod.ALT | Mod.CTRL if ctrl_name.startswith('ctrl+') else Mod.ALT
+            return KeyMsg(f'alt+{ctrl_name}', mod=mod)
 
     return KeyMsg(f'unknown({buf!r})')
 

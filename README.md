@@ -52,6 +52,16 @@ Traditional TUI frameworks (curses, Textual) maintain an internal screen buffer 
 
 Because ANSI rendering is done by the terminal emulator (which is GPU-accelerated in modern terminals like Ghostty, Kitty, WezTerm), the Python side only needs to produce and diff strings. There's no pixel math, no redraw-the-whole-screen, no intermediate buffer.
 
+### Why not cell-level diffing?
+
+Bubble Tea v2 introduced a "Cursed Renderer" that parses view output through an ANSI state machine, builds a 2D grid of cells (each with character + style attributes), and diffs individual cells against the previous frame. snaptui deliberately does not adopt this approach.
+
+The reason is the ratio of computation cost to I/O savings. In Go, the ANSI parser is compiled machine code -- iterating 80x40 = 3,200 cells, comparing structs, and building output takes microseconds. The I/O savings (writing 200 bytes instead of 3,000) are worth more than the computation cost.
+
+In Python, the same state-machine parser would iterate character-by-character through interpreted code, create objects for each cell, and do attribute comparisons through Python's object protocol. For 3,200 cells this easily costs 1-5ms, while the I/O savings of ~2,800 fewer bytes is maybe 0.1ms at TTY write speeds. You'd spend 5ms of CPU to save 0.1ms of I/O.
+
+The line-diff renderer sidesteps this: string equality (`old == new`) is a single C-level comparison in CPython. No parsing, no cell objects, no per-character work. The cost is near-zero, and unchanged lines (the majority of the screen on any given frame) are skipped entirely.
+
 ## What's ported from where
 
 snaptui combines features from four Charm libraries into one package, porting from these exact versions:
@@ -80,6 +90,8 @@ Here's what's implemented and what's not:
 | SIGWINCH resize handling | bubbletea | `terminal.listen_for_resize()` | Done |
 | Mouse input events | bubbletea | -- | Not yet |
 | Bracketed paste events | bubbletea | -- | Not yet |
+| Declarative View struct (cursor, title, alt screen) | bubbletea v2 | `View` dataclass | Done |
+| Key modifier bitfield | bubbletea v2 | `Mod` IntFlag on `KeyMsg` | Done |
 | Focus/blur events | bubbletea v2 | -- | Not yet |
 | Kitty keyboard protocol | bubbletea v2 | -- | Not yet |
 | Clipboard (OSC 52) | bubbletea v2 | -- | Not yet |
@@ -92,6 +104,7 @@ Here's what's implemented and what's not:
 |---------|-------------|-------|--------|
 | Chainable style builder | lipgloss | `Style` class | Done |
 | Text attributes (bold, dim, italic, underline, reverse, strikethrough) | lipgloss | `Style.bold()`, `.dim()`, etc. | Done |
+| Underline styles (curly, dotted, dashed, double) and color | lipgloss v2 | `Style.underline_style()`, `.underline_color()` | Done |
 | True color (24-bit RGB) | lipgloss | `Style.fg()`, `.bg()` | Done |
 | Padding (CSS shorthand) | lipgloss | `Style.padding()` | Done |
 | Margin (CSS shorthand) | lipgloss | `Style.margin()` | Done |

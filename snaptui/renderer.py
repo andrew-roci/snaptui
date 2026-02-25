@@ -1,6 +1,7 @@
 """Line-diff renderer — port of Bubble Tea's standard_renderer.
 
 Cursor home, walk lines, skip unchanged, write changed with erase-to-EOL.
+Supports hardware cursor positioning from View.cursor.
 """
 
 from __future__ import annotations
@@ -23,7 +24,14 @@ class Renderer:
         """Force full repaint on next render (no screen clear)."""
         self._repaint = True
 
-    def render(self, output: str, width: int, height: int) -> None:
+    def render(
+        self,
+        output: str,
+        width: int,
+        height: int,
+        *,
+        cursor: tuple[int, int] | None = None,
+    ) -> None:
         """Render output string to terminal, only updating changed lines."""
         new_lines = output.split('\n')
 
@@ -59,6 +67,14 @@ class Renderer:
         # Clear any leftover lines from previous render
         if len(self._prev_lines) > len(new_lines):
             buf.append(terminal.ERASE_SCREEN_BELOW)
+
+        # Cursor handling
+        if cursor is not None:
+            row, col = cursor
+            buf.append(terminal.cursor_to(row + 1, col + 1))
+            buf.append(terminal.SHOW_CURSOR)
+        else:
+            buf.append(terminal.HIDE_CURSOR)
 
         frame = ''.join(buf)
         self._out.write(

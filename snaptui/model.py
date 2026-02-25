@@ -5,7 +5,7 @@ Equivalent to Bubble Tea's tea.Model, tea.Msg, tea.Cmd.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol, runtime_checkable
 
 
@@ -33,6 +33,24 @@ class QuitMsg:
 class CursorBlinkMsg:
     """Sent by TextInput to toggle cursor visibility."""
     tag: int = 0
+
+
+# ── View struct ───────────────────────────────────────────────────────────────
+
+@dataclass(frozen=True, slots=True)
+class View:
+    """Declarative view returned by model.view().
+
+    Attributes:
+        content: The rendered string content.
+        cursor: Hardware cursor position (row, col) relative to content, or None to hide.
+        alt_screen: Whether to use the alternate screen buffer.
+        window_title: Terminal window title (OSC 2), or None to leave unchanged.
+    """
+    content: str
+    cursor: tuple[int, int] | None = None
+    alt_screen: bool = True
+    window_title: str | None = None
 
 
 # ── Command types ─────────────────────────────────────────────────────────────
@@ -85,6 +103,6 @@ class Model(Protocol):
         """Handle a message. Return (new_model, cmd)."""
         ...
 
-    def view(self) -> str:
-        """Render the current state as a string for display."""
+    def view(self) -> str | View:
+        """Render the current state as a string or View for display."""
         ...

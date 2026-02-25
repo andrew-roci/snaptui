@@ -189,3 +189,16 @@ class TextInput:
             lines.append(prompt + display)
 
         return '\n'.join(lines)
+
+    def cursor_position(self) -> tuple[int, int] | None:
+        """Return (row, col) of the hardware cursor relative to this component's output.
+
+        Returns None when not focused. Row accounts for the label line if present.
+        Col accounts for the prompt width.
+        """
+        if not self.focused:
+            return None
+        row = 1 if self._label else 0
+        prompt = self.prompt if self.prompt else ''
+        col = strutil.visible_width(prompt) + self.cursor
+        return (row, col)

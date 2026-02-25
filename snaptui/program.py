@@ -12,7 +12,7 @@ from queue import Empty, Queue
 
 from . import keys
 from . import terminal
-from .model import Cmd, Model, Msg, QuitMsg, WindowSizeMsg, batch
+from .model import Cmd, Model, Msg, QuitMsg, View, WindowSizeMsg, batch
 from .renderer import Renderer
 
 
@@ -40,6 +40,7 @@ class Program:
         self._renderer = Renderer()
         self._width = 80
         self._height = 24
+        self._prev_view: View | None = None
 
     def run(self) -> Model:
         """Run the program. Blocks until quit. Returns final model."""
@@ -141,8 +142,28 @@ class Program:
 
     def _render(self) -> None:
         """Render the current model view."""
-        output = self.model.view()
-        self._renderer.render(output, self._width, self._height)
+        result = self.model.view()
+        if isinstance(result, View):
+            view = result
+        else:
+            view = View(content=result, alt_screen=self._alt_screen)
+        self._apply_terminal_state(view)
+        self._renderer.render(view.content, self._width, self._height, cursor=view.cursor)
+        self._prev_view = view
+
+    def _apply_terminal_state(self, view: View) -> None:
+        """Diff View terminal fields against previous frame and emit changes."""
+        prev = self._prev_view
+        buf = ''
+        # Alt screen toggle
+        if prev is not None and view.alt_screen != prev.alt_screen:
+            buf += terminal.ALT_SCREEN_ON if view.alt_screen else terminal.ALT_SCREEN_OFF
+        # Window title
+        if view.window_title is not None:
+            if prev is None or view.window_title != prev.window_title:
+                buf += terminal.set_window_title(view.window_title)
+        if buf:
+            terminal.write(buf)
 
     def send(self, msg: Msg) -> None:
         """Send a message to the program from outside (thread-safe)."""

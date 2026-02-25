@@ -228,3 +228,23 @@ class TextArea:
             result.append(' ' * gutter_w if self.show_line_numbers else '')
 
         return '\n'.join(result)
+
+    def cursor_position(self) -> tuple[int, int] | None:
+        """Return (row, col) of the hardware cursor relative to this component's output.
+
+        Returns None when not focused or cursor is not visible (scrolled off-screen).
+        Accounts for label line, scroll offset, and line number gutter.
+        """
+        if not self.focused:
+            return None
+        # Check if cursor row is in the visible range
+        if self.cursor_row < self.y_offset or self.cursor_row >= self.y_offset + self.height:
+            return None
+        row = self.cursor_row - self.y_offset
+        if self._label:
+            row += 1
+        col = self.cursor_col
+        if self.show_line_numbers:
+            gutter_w = len(str(len(self.lines))) + 1
+            col += gutter_w
+        return (row, col)
