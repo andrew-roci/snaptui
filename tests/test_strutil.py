@@ -78,6 +78,26 @@ class TestTruncate:
         assert result == "漢"
         assert visible_width(result) == 2
 
+    def test_tail_ellipsis(self):
+        result = truncate("hello world", 8, "...")
+        assert result == "hello..."
+        assert visible_width(result) == 8
+
+    def test_tail_no_truncation_needed(self):
+        result = truncate("hi", 10, "...")
+        assert result == "hi"
+
+    def test_tail_unicode(self):
+        result = truncate("hello world", 6, "\u2026")
+        assert visible_width(result) <= 6
+        assert result.endswith("\u2026")
+
+    def test_tail_with_ansi(self):
+        s = "\x1b[1mhello world\x1b[0m"
+        result = truncate(s, 8, "...")
+        assert visible_width(result) <= 8
+        assert result.endswith("...")
+
 
 class TestWordWrap:
     def test_short_line(self):

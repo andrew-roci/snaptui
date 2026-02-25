@@ -39,14 +39,29 @@ def pad_right(s: str, width: int) -> str:
     return s + ' ' * (width - vw)
 
 
-def truncate(s: str, width: int) -> str:
+def truncate(s: str, width: int, tail: str = '') -> str:
     """Truncate string to fit within visible width, preserving ANSI sequences.
 
     Walks through the string character by character, tracking visible width.
     ANSI sequences are passed through without counting toward width.
+
+    Args:
+        s: The string to truncate.
+        width: Maximum visible width.
+        tail: String to append when truncation occurs (e.g. "..." or "\u2026").
+              The tail's width is subtracted from the available space.
     """
     if width <= 0:
         return ''
+
+    vw = visible_width(s)
+    if vw <= width:
+        return s
+
+    tail_width = visible_width(tail) if tail else 0
+    content_width = width - tail_width
+    if content_width <= 0:
+        return tail[:width] if tail else ''
 
     result: list[str] = []
     current_width = 0
@@ -63,11 +78,14 @@ def truncate(s: str, width: int) -> str:
 
         ch = s[i]
         cw = _char_width(ch)
-        if current_width + cw > width:
+        if current_width + cw > content_width:
             break
         result.append(ch)
         current_width += cw
         i += 1
+
+    if tail:
+        result.append(tail)
 
     return ''.join(result)
 

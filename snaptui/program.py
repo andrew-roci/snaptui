@@ -6,13 +6,14 @@ Ties together terminal, keys, model, and renderer.
 from __future__ import annotations
 
 import os
+import signal
 import sys
 import threading
 from queue import Empty, Queue
 
 from . import keys
 from . import terminal
-from .model import Cmd, Model, Msg, QuitMsg, View, WindowSizeMsg, batch
+from .model import Cmd, Model, Msg, QuitMsg, Sub, View, WindowSizeMsg, batch
 from .renderer import Renderer
 
 
@@ -31,21 +32,28 @@ class Program:
         *,
         alt_screen: bool = True,
         mouse: bool = False,
+        bracketed_paste: bool = False,
     ) -> None:
         self.model = model
         self._alt_screen = alt_screen
         self._mouse = mouse
+        self._bracketed_paste = bracketed_paste
         self._quit = False
         self._queue: Queue[Msg] = Queue()
         self._renderer = Renderer()
         self._width = 80
         self._height = 24
         self._prev_view: View | None = None
+        self._active_subs: dict[str, callable] = {}  # key -> stop()
+        self._fd: int | None = None
+        self._old_state: list | None = None
 
     def run(self) -> Model:
         """Run the program. Blocks until quit. Returns final model."""
         fd = sys.stdin.fileno()
+        self._fd = fd
         old_state = terminal.make_raw(fd)
+        self._old_state = old_state
 
         try:
             # Enter alt screen, hide cursor
@@ -55,6 +63,8 @@ class Program:
             setup += terminal.HIDE_CURSOR
             if self._mouse:
                 setup += terminal.ENABLE_MOUSE
+            if self._bracketed_paste:
+                setup += terminal.ENABLE_BRACKETED_PASTE
             terminal.write(setup)
 
             # Get initial size
@@ -64,9 +74,15 @@ class Program:
             # Listen for resize
             terminal.listen_for_resize(self._on_resize)
 
+            # Handle Ctrl+Z (suspend/resume)
+            self._install_suspend_handler()
+
             # Run init cmd
             init_cmd = self.model.init()
             self._exec_cmd(init_cmd)
+
+            # Start initial subscriptions
+            self._sync_subs()
 
             # Initial render
             self._render()
@@ -82,10 +98,15 @@ class Program:
                 self._drain_queue()
 
         finally:
+            # Stop all subscriptions
+            self._stop_all_subs()
+
             # Teardown
             teardown = terminal.SHOW_CURSOR
             if self._mouse:
                 teardown += terminal.DISABLE_MOUSE
+            if self._bracketed_paste:
+                teardown += terminal.DISABLE_BRACKETED_PASTE
             if self._alt_screen:
                 teardown += terminal.ALT_SCREEN_OFF
             terminal.write(teardown)
@@ -103,6 +124,11 @@ class Program:
             self._quit = True
             return
 
+        # Handle Ctrl+Z: trigger SIGTSTP for suspend
+        if isinstance(msg, keys.KeyMsg) and msg.key == 'ctrl+z':
+            os.kill(os.getpid(), signal.SIGTSTP)
+            return
+
         if isinstance(msg, WindowSizeMsg):
             self._width = msg.width
             self._height = msg.height
@@ -111,6 +137,7 @@ class Program:
         new_model, cmd = self.model.update(msg)
         self.model = new_model
         self._exec_cmd(cmd)
+        self._sync_subs()
         self._render()
 
     def _exec_cmd(self, cmd: Cmd) -> None:
@@ -140,6 +167,32 @@ class Program:
             except Empty:
                 break
 
+    def _sync_subs(self) -> None:
+        """Start/stop subscriptions to match model.subscriptions()."""
+        if not hasattr(self.model, 'subscriptions'):
+            return
+
+        desired = self.model.subscriptions()
+        desired_keys = {s.key for s in desired}
+
+        # Stop removed subscriptions
+        for key in list(self._active_subs):
+            if key not in desired_keys:
+                self._active_subs[key]()
+                del self._active_subs[key]
+
+        # Start new subscriptions
+        for sub in desired:
+            if sub.key not in self._active_subs:
+                stop = sub.start(self.send)
+                self._active_subs[sub.key] = stop
+
+    def _stop_all_subs(self) -> None:
+        """Stop all active subscriptions."""
+        for stop in self._active_subs.values():
+            stop()
+        self._active_subs.clear()
+
     def _render(self) -> None:
         """Render the current model view."""
         result = self.model.view()
@@ -164,6 +217,52 @@ class Program:
                 buf += terminal.set_window_title(view.window_title)
         if buf:
             terminal.write(buf)
+
+    def _install_suspend_handler(self) -> None:
+        """Install SIGTSTP handler for Ctrl+Z suspend/resume."""
+        def on_suspend(signum, frame):
+            # Restore terminal to normal state
+            teardown = terminal.SHOW_CURSOR
+            if self._mouse:
+                teardown += terminal.DISABLE_MOUSE
+            if self._bracketed_paste:
+                teardown += terminal.DISABLE_BRACKETED_PASTE
+            if self._alt_screen:
+                teardown += terminal.ALT_SCREEN_OFF
+            terminal.write(teardown)
+            if self._fd is not None and self._old_state is not None:
+                terminal.restore(self._fd, self._old_state)
+
+            # Reset SIGTSTP to default and re-raise to actually suspend
+            signal.signal(signal.SIGTSTP, signal.SIG_DFL)
+            os.kill(os.getpid(), signal.SIGTSTP)
+
+        def on_resume(signum, frame):
+            # Re-enter raw mode
+            if self._fd is not None:
+                self._old_state = terminal.make_raw(self._fd)
+
+            # Restore terminal state
+            setup = ''
+            if self._alt_screen:
+                setup += terminal.ALT_SCREEN_ON
+            setup += terminal.HIDE_CURSOR
+            if self._mouse:
+                setup += terminal.ENABLE_MOUSE
+            if self._bracketed_paste:
+                setup += terminal.ENABLE_BRACKETED_PASTE
+            terminal.write(setup)
+
+            # Re-install suspend handler (was reset to SIG_DFL)
+            signal.signal(signal.SIGTSTP, on_suspend)
+
+            # Force repaint and get new size
+            self._width, self._height = terminal.get_size()
+            self._renderer.repaint()
+            self._queue.put(WindowSizeMsg(self._width, self._height))
+
+        signal.signal(signal.SIGTSTP, on_suspend)
+        signal.signal(signal.SIGCONT, on_resume)
 
     def send(self, msg: Msg) -> None:
         """Send a message to the program from outside (thread-safe)."""

@@ -22,6 +22,51 @@ class Mod(IntFlag):
     META  = 8
 
 
+class MouseAction:
+    """Mouse action types."""
+    PRESS = 'press'
+    RELEASE = 'release'
+    MOTION = 'motion'
+    WHEEL_UP = 'wheel_up'
+    WHEEL_DOWN = 'wheel_down'
+
+
+class MouseButton:
+    """Mouse button types."""
+    LEFT = 'left'
+    MIDDLE = 'middle'
+    RIGHT = 'right'
+    NONE = 'none'
+
+
+@dataclass(frozen=True, slots=True)
+class PasteMsg:
+    """A bracketed paste event containing all pasted text at once."""
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class FocusMsg:
+    """Terminal focus/blur event."""
+    focused: bool
+
+
+@dataclass(frozen=True, slots=True)
+class MouseMsg:
+    """A mouse event.
+
+    Attributes:
+        x: Column (0-based).
+        y: Row (0-based).
+        button: Which button (left/middle/right/none).
+        action: What happened (press/release/motion/wheel_up/wheel_down).
+    """
+    x: int
+    y: int
+    button: str = MouseButton.NONE
+    action: str = MouseAction.PRESS
+
+
 @dataclass(frozen=True, slots=True, eq=False)
 class KeyMsg:
     """A key press event.
@@ -194,7 +239,7 @@ CTRL_MAP: dict[int, str] = {
 
 # ── Key reading ───────────────────────────────────────────────────────────────
 
-def read_key(fd: int, timeout: float = 0.05) -> KeyMsg | None:
+def read_key(fd: int, timeout: float = 0.05) -> KeyMsg | MouseMsg | None:
     """Read one key event from raw stdin.
 
     Args:
@@ -202,7 +247,7 @@ def read_key(fd: int, timeout: float = 0.05) -> KeyMsg | None:
         timeout: Seconds to wait for data (0 for non-blocking)
 
     Returns:
-        KeyMsg or None if no data available within timeout
+        KeyMsg, MouseMsg, or None if no data available within timeout
     """
     # Wait for data
     ready, _, _ = select.select([fd], [], [], timeout)
@@ -235,7 +280,89 @@ def read_key(fd: int, timeout: float = 0.05) -> KeyMsg | None:
         return KeyMsg(f'unknown({byte})')
 
 
-def _read_escape_sequence(fd: int, initial: bytes) -> KeyMsg:
+def _parse_sgr_mouse(buf: bytes) -> MouseMsg | None:
+    """Parse SGR mouse event: ESC [ < btn ; x ; y [Mm]."""
+    # buf should be like b'\x1b[<0;10;5M' or b'\x1b[<0;10;5m'
+    try:
+        text = buf.decode('ascii')
+    except (UnicodeDecodeError, ValueError):
+        return None
+
+    if not text.startswith('\x1b[<'):
+        return None
+
+    terminator = text[-1]
+    if terminator not in ('M', 'm'):
+        return None
+
+    parts = text[3:-1].split(';')
+    if len(parts) != 3:
+        return None
+
+    try:
+        btn_code = int(parts[0])
+        x = int(parts[1]) - 1  # 1-based to 0-based
+        y = int(parts[2]) - 1
+    except ValueError:
+        return None
+
+    # Decode button and action
+    button_bits = btn_code & 0x03
+    is_motion = bool(btn_code & 32)
+    is_wheel = bool(btn_code & 64)
+
+    if is_wheel:
+        action = MouseAction.WHEEL_UP if button_bits == 0 else MouseAction.WHEEL_DOWN
+        return MouseMsg(x=x, y=y, button=MouseButton.NONE, action=action)
+
+    if button_bits == 0:
+        button = MouseButton.LEFT
+    elif button_bits == 1:
+        button = MouseButton.MIDDLE
+    elif button_bits == 2:
+        button = MouseButton.RIGHT
+    else:
+        button = MouseButton.NONE
+
+    if is_motion:
+        action = MouseAction.MOTION
+    elif terminator == 'm':
+        action = MouseAction.RELEASE
+    else:
+        action = MouseAction.PRESS
+
+    return MouseMsg(x=x, y=y, button=button, action=action)
+
+
+PASTE_START = b'\x1b[200~'
+PASTE_END = b'\x1b[201~'
+
+FOCUS_IN = b'\x1b[I'
+FOCUS_OUT = b'\x1b[O'
+
+
+def _read_paste(fd: int) -> PasteMsg:
+    """Read pasted text until the end-of-paste sequence."""
+    buf = bytearray()
+    end_seq = PASTE_END
+    while True:
+        ready, _, _ = select.select([fd], [], [], 1.0)
+        if not ready:
+            break
+        b = os.read(fd, 4096)
+        if not b:
+            break
+        buf.extend(b)
+        # Check for end sequence
+        idx = buf.find(end_seq)
+        if idx >= 0:
+            text = bytes(buf[:idx]).decode('utf-8', errors='replace')
+            return PasteMsg(text=text)
+    # Timeout — return what we have
+    return PasteMsg(text=buf.decode('utf-8', errors='replace'))
+
+
+def _read_escape_sequence(fd: int, initial: bytes) -> KeyMsg | MouseMsg | PasteMsg | FocusMsg:
     """Read an escape sequence after receiving ESC byte."""
     buf = initial  # b'\x1b'
 
@@ -249,6 +376,16 @@ def _read_escape_sequence(fd: int, initial: bytes) -> KeyMsg:
             break
         buf += b
 
+        # Check for bracketed paste start
+        if buf == PASTE_START:
+            return _read_paste(fd)
+
+        # Check for focus events
+        if buf == FOCUS_IN:
+            return FocusMsg(focused=True)
+        if buf == FOCUS_OUT:
+            return FocusMsg(focused=False)
+
         # Check if we have a complete sequence
         if buf in SEQUENCES:
             return SEQUENCES[buf]
@@ -256,6 +393,11 @@ def _read_escape_sequence(fd: int, initial: bytes) -> KeyMsg:
         # Check if we're in a CSI sequence (ESC [ ... letter)
         if len(buf) >= 3 and buf[1:2] == b'[':
             last = buf[-1]
+            # SGR mouse: ESC [ < ... M/m
+            if len(buf) >= 4 and buf[2:3] == b'<' and last in (ord('M'), ord('m')):
+                mouse = _parse_sgr_mouse(buf)
+                if mouse:
+                    return mouse
             # CSI sequences end with a letter (0x40-0x7E)
             if 0x40 <= last <= 0x7E:
                 if buf in SEQUENCES:

@@ -85,6 +85,19 @@ def batch(*cmds: Cmd) -> Cmd:
 
 # ── Model protocol ───────────────────────────────────────────────────────────
 
+@dataclass(frozen=True, slots=True)
+class Sub:
+    """A subscription declaration returned by Model.subscriptions().
+
+    Attributes:
+        key: Unique identifier for this subscription.
+        start: Callable that starts the subscription.
+               Receives a send(msg) callback; returns a stop() callable.
+    """
+    key: str
+    start: Callable[[Callable[[Msg], None]], Callable[[], None]]
+
+
 @runtime_checkable
 class Model(Protocol):
     """Protocol for Bubble Tea-style models.
@@ -93,6 +106,7 @@ class Model(Protocol):
     - init() -> Cmd: Called once at startup, returns initial command
     - update(msg) -> tuple[Model, Cmd]: Handle a message, return new state + command
     - view() -> str: Render current state as a string
+    - subscriptions() -> list[Sub]: Declare background listeners (optional)
     """
 
     def init(self) -> Cmd:

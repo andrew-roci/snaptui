@@ -88,15 +88,15 @@ Here's what's implemented and what's not:
 | Line-diff renderer | bubbletea | `renderer.Renderer` | Done |
 | Keyboard input parsing (70+ sequences) | bubbletea | `keys.read_key()` | Done |
 | SIGWINCH resize handling | bubbletea | `terminal.listen_for_resize()` | Done |
-| Mouse input events | bubbletea | -- | Not yet |
-| Bracketed paste events | bubbletea | -- | Not yet |
+| Mouse input events (SGR) | bubbletea | `MouseMsg`, `Program(mouse=True)` | Done |
+| Bracketed paste events | bubbletea | `PasteMsg`, `Program(bracketed_paste=True)` | Done |
 | Declarative View struct (cursor, title, alt screen) | bubbletea v2 | `View` dataclass | Done |
 | Key modifier bitfield | bubbletea v2 | `Mod` IntFlag on `KeyMsg` | Done |
-| Focus/blur events | bubbletea v2 | -- | Not yet |
+| Focus/blur events | bubbletea v2 | `FocusMsg` | Done |
 | Kitty keyboard protocol | bubbletea v2 | -- | Not yet |
 | Clipboard (OSC 52) | bubbletea v2 | -- | Not yet |
-| Subscriptions (long-running listeners) | bubbletea | -- | Not yet |
-| Suspend/resume (Ctrl+Z) | bubbletea | -- | Not yet |
+| Subscriptions (long-running listeners) | bubbletea | `Sub`, `Model.subscriptions()` | Done |
+| Suspend/resume (Ctrl+Z) | bubbletea | SIGTSTP/SIGCONT handling in `Program` | Done |
 
 ### Styling
 
@@ -143,7 +143,7 @@ Here's what's implemented and what's not:
 | CJK wide character support | x/ansi | `strutil._char_width()` | Done |
 | Grapheme cluster segmentation | x/ansi | -- | Not yet |
 | Hard wrap (non-word-boundary) | x/ansi | -- | Not yet (hard-break exists within word_wrap) |
-| Truncate with tail ("...") | x/ansi | -- | Not yet |
+| Truncate with tail ("...") | x/ansi | `strutil.truncate(s, w, tail="...")` | Done |
 
 ### Components
 
@@ -158,12 +158,12 @@ Here's what's implemented and what's not:
 | Multi-field form | huh | `Form` | Done |
 | Form theme (focused/blurred styles) | huh | `Theme`, `ThemeCharm` | Done |
 | App theme (titles, borders, list items) | snaptui-original | `AppTheme`, `AppThemeCharm` | Done |
-| Table | bubbles/table | -- | Not yet |
-| Spinner | bubbles/spinner | -- | Not yet |
-| Progress bar | bubbles/progress | -- | Not yet |
+| Table | bubbles/table | `Table`, `Column` | Done |
+| Spinner | bubbles/spinner | `Spinner`, `SpinnerTickMsg` | Done |
+| Progress bar | bubbles/progress | `Progress` | Done |
 | File picker | bubbles/filepicker | -- | Not yet |
 | Timer / Stopwatch | bubbles/timer, bubbles/stopwatch | -- | Not yet |
-| Help (auto-generated keybinds) | bubbles/help | -- | Not yet |
+| Help (auto-generated keybinds) | bubbles/help | `Help`, `KeyBinding` | Done |
 
 ### Legend
 
@@ -193,6 +193,10 @@ your_app.py
                     +-- select.py      Option picker
                     +-- confirm.py     Yes/No prompt
                     +-- form.py        Multi-field form
+                    +-- table.py       Column-aligned data table
+                    +-- spinner.py     Animated spinner
+                    +-- progress.py    Progress bar
+                    +-- help.py        Auto-generated keybind help
 ```
 
 In Go, these are spread across four repos (bubbletea, lipgloss, bubbles, x/ansi). snaptui combines them because Python apps can just import what they need from one package.
@@ -226,6 +230,10 @@ Go source repos:
 | `components/select.py` | `huh/field_select.go` |
 | `components/confirm.py` | `huh/field_confirm.go` |
 | `components/form.py` | `huh/form.go`, `huh/group.go` |
+| `components/table.py` | `bubbles/table/table.go` |
+| `components/spinner.py` | `bubbles/spinner/spinner.go` |
+| `components/progress.py` | `bubbles/progress/progress.go` |
+| `components/help.py` | `bubbles/help/help.go`, `bubbles/key/key.go` |
 
 ## Running tests
 
