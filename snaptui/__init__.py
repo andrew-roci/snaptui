@@ -8,7 +8,7 @@ from .model import Model, Msg, Cmd, WindowSizeMsg, QuitMsg, CursorBlinkMsg, quit
 from .keys import KeyMsg
 from .program import Program
 from .style import Style, ROUNDED_BORDER, NORMAL_BORDER, DOUBLE_BORDER, THICK_BORDER, HIDDEN_BORDER, NO_BORDER, Border
-from .theme import Theme, ThemeCharm
+from .theme import Theme, ThemeCharm, AppTheme, AppThemeCharm
 from .layout import join_horizontal, join_vertical, place, LEFT, RIGHT, CENTER, TOP, BOTTOM
 from . import terminal
 from . import strutil
@@ -20,7 +20,7 @@ __all__ = [
     # Style + Theme
     'Style', 'Border',
     'ROUNDED_BORDER', 'NORMAL_BORDER', 'DOUBLE_BORDER', 'THICK_BORDER', 'HIDDEN_BORDER', 'NO_BORDER',
-    'Theme', 'ThemeCharm',
+    'Theme', 'ThemeCharm', 'AppTheme', 'AppThemeCharm',
     # Layout
     'join_horizontal', 'join_vertical', 'place',
     'LEFT', 'RIGHT', 'CENTER', 'TOP', 'BOTTOM',
