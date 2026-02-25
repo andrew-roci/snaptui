@@ -143,6 +143,8 @@ Here's what's implemented and what's not:
 | Option picker (select) | bubbles/list | `Select` | Done |
 | Yes/No confirmation | huh | `Confirm` | Done |
 | Multi-field form | huh | `Form` | Done |
+| Form theme (focused/blurred styles) | huh | `Theme`, `ThemeCharm` | Done |
+| App theme (titles, borders, list items) | snaptui-original | `AppTheme`, `AppThemeCharm` | Done |
 | Table | bubbles/table | -- | Not yet |
 | Spinner | bubbles/spinner | -- | Not yet |
 | Progress bar | bubbles/progress | -- | Not yet |
@@ -203,7 +205,7 @@ Go source repos:
 | `style.py` | `lipgloss/style.go`, `lipgloss/set.go`, `lipgloss/get.go`, `lipgloss/color.go`, `lipgloss/borders.go`, `lipgloss/whitespace.go`, `lipgloss/size.go` |
 | `layout.py` | `lipgloss/join.go`, `lipgloss/align.go`, `lipgloss/position.go` |
 | `strutil.py` | `x/ansi/width.go`, `x/ansi/wrap.go`, `x/ansi/truncate.go`, `x/ansi/style.go` |
-| `theme.py` | `huh/theme.go` |
+| `theme.py` | `huh/theme.go` (Form theme); `AppTheme`/`AppThemeCharm` are snaptui-original |
 | `components/textinput.py` | `bubbles/textinput/textinput.go`, `bubbles/cursor/cursor.go` |
 | `components/textarea.py` | `bubbles/textarea/textarea.go` |
 | `components/viewport.py` | `bubbles/viewport/viewport.go`, `bubbles/viewport/keymap.go` |
